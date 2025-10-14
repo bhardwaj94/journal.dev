@@ -8,93 +8,8 @@ import { Button } from "@/components/ui/button"
 import { LinkSuggest } from "./link-suggest"
 import type { Note } from "./types"
 import { useRouter } from "next/navigation"
-
-// Inject Quill CSS from CDN
-function ensureQuillStyles() {
-  const id = "quill-snow-css"
-  if (!document.getElementById(id)) {
-    const link = document.createElement("link")
-    link.id = id
-    link.rel = "stylesheet"
-    link.href = "https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css"
-    document.head.appendChild(link)
-  }
-}
-
-// Inject KaTeX assets for formulas
-function ensureKatexAssets(): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve()
-  const cssId = "katex-css"
-  if (!document.getElementById(cssId)) {
-    const link = document.createElement("link")
-    link.id = cssId
-    link.rel = "stylesheet"
-    link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-    document.head.appendChild(link)
-  }
-  const scriptId = "katex-js"
-  if ((window as any).katex) return Promise.resolve()
-  return new Promise((resolve, reject) => {
-    if (document.getElementById(scriptId)) {
-      const check = () => ((window as any).katex ? resolve() : setTimeout(check, 50))
-      check()
-      return
-    }
-    const s = document.createElement("script")
-    s.id = scriptId
-    s.src = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
-    s.async = true
-    s.onload = () => resolve()
-    s.onerror = () => reject(new Error("Failed to load KaTeX from CDN"))
-    document.head.appendChild(s)
-  })
-}
-
-let quillLoadPromise: Promise<any> | null = null
-function loadQuillFromCDN(): Promise<any> {
-  if (typeof window === "undefined") return Promise.reject(new Error("No window"))
-  // already present
-  // @ts-ignore
-  if (window.Quill) {
-    // @ts-ignore
-    return Promise.resolve(window.Quill)
-  }
-  if (!quillLoadPromise) {
-    quillLoadPromise = new Promise((resolve, reject) => {
-      const scriptId = "quill-cdn-script"
-      if (!document.getElementById(scriptId)) {
-        const s = document.createElement("script")
-        s.id = scriptId
-        s.src = "https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"
-        s.async = true
-        s.onload = () => {
-          // @ts-ignore
-          if (window.Quill) {
-            // @ts-ignore
-            resolve(window.Quill)
-          } else {
-            reject(new Error("Quill loaded but window.Quill is missing"))
-          }
-        }
-        s.onerror = () => reject(new Error("Failed to load Quill from CDN"))
-        document.head.appendChild(s)
-      } else {
-        // script exists; wait a tick and resolve
-        const check = () => {
-          // @ts-ignore
-          if (window.Quill) {
-            // @ts-ignore
-            resolve(window.Quill)
-          } else {
-            setTimeout(check, 50)
-          }
-        }
-        check()
-      }
-    })
-  }
-  return quillLoadPromise
-}
+import Quill from 'quill'
+import 'quill/dist/quill.snow.css'
 
 export function NoteEditor({ id }: { id: string }) {
   const router = useRouter()
@@ -122,8 +37,9 @@ export function NoteEditor({ id }: { id: string }) {
         [{ list: "ordered" }, { list: "bullet" }],
         [{ indent: "-1" }, { indent: "+1" }], // indent controls (multi-level)
         ["blockquote", "code-block", "formula"], // add formula button
+        [{ 'color': [] }, { 'background': [] }], 
+        [{ 'align': [] }],
         ["link", "image"],
-        ["clean"],
       ],
       history: { delay: 500, maxStack: 100, userOnly: true },
       clipboard: { matchVisual: false },
@@ -133,19 +49,22 @@ export function NoteEditor({ id }: { id: string }) {
   )
 
   useEffect(() => {
-    ensureQuillStyles()
-    ensureKatexAssets()
-  }, [])
-
-  useEffect(() => {
     let quill: any
     let offTextChange: any
 
     async function mount() {
-      ensureQuillStyles()
-      await ensureKatexAssets() // ensure window.katex exists for formula module
-      const Quill: any = await loadQuillFromCDN()
       if (!quillElRef.current) return
+
+      // Clean up any previous Quill instance and toolbar
+      if (quillRef.current) {
+        quillRef.current.off && quillRef.current.off("text-change")
+        // Remove toolbar if present
+        const toolbar = quillElRef.current.parentElement?.querySelector(".ql-toolbar");
+        if (toolbar) toolbar.remove();
+        // Remove editor contents
+        quillElRef.current.innerHTML = "";
+      }
+
       quill = new Quill(quillElRef.current, {
         theme: "snow",
         modules,
