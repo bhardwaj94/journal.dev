@@ -34,16 +34,15 @@ export function NoteEditor({ id }: { id: string }) {
         [{ font: [] }],
         ["bold", "italic", "underline", "strike"],
         [{ header: [1, 2, 3, false] }],
-        [{ list: "ordered" }, { list: "bullet" }],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'list': 'check' }],
         [{ indent: "-1" }, { indent: "+1" }], // indent controls (multi-level)
-        ["blockquote", "code-block", "formula"], // add formula button
+        ["blockquote", "code-block"], // add formula button
         [{ 'color': [] }, { 'background': [] }], 
         [{ 'align': [] }],
         ["link", "image"],
       ],
       history: { delay: 500, maxStack: 100, userOnly: true },
       clipboard: { matchVisual: false },
-      formula: true, // activate formula module (requires window.katex)
     }),
     [],
   )
