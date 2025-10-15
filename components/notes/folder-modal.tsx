@@ -5,83 +5,107 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useFolders } from "@/lib/notes-store"
-import type { Folder } from "./types"
+import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
 
+import { cn } from "@/lib/utils"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 type Props = {
   open: boolean
   onOpenChange: (v: boolean) => void
   onConfirm: (selection: { folderId?: string; newFolderName?: string }) => void
 }
-
 export function FolderSelectModal({ open, onOpenChange, onConfirm }: Props) {
   const { folders } = useFolders()
-  const [query, setQuery] = useState("")
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined) // undefined = Inbox
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
   const [newFolderName, setNewFolderName] = useState("")
-
+  const [newFolderOpen, setNewFolderOpen] = useState(false)
+  const [openCombo, setOpenCombo] = useState(false)
+  const [comboValues, setComboValue] = useState("")
   useEffect(() => {
     if (!open) {
-      setQuery("")
       setSelectedId(undefined)
       setNewFolderName("")
     }
   }, [open])
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return folders
-    return folders.filter((f) => f.name.toLowerCase().includes(q))
-  }, [folders, query])
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Choose a folder</DialogTitle>
+          <DialogTitle>Save to</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-4">
-          <Input
-            placeholder="Search folders..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search folders"
-          />
-
-          <div className="max-h-56 overflow-auto rounded-md border bg-card">
-            <label className="flex cursor-pointer items-center gap-3 border-b p-3 last:border-b-0">
-              <input
-                type="radio"
-                name="folder"
-                checked={selectedId === undefined}
-                onChange={() => setSelectedId(undefined)}
-              />
-              <span className="truncate">Inbox</span>
-            </label>
-            {filtered.map((f: Folder) => (
-              <label key={f.id} className="flex cursor-pointer items-center gap-3 border-b p-3 last:border-b-0">
-                <input type="radio" name="folder" checked={selectedId === f.id} onChange={() => setSelectedId(f.id)} />
-                <span className="truncate">{f.name}</span>
-              </label>
-            ))}
-            {filtered.length === 0 && <div className="p-3 text-sm text-muted-foreground">No folders found</div>}
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+          <Popover open={openCombo} onOpenChange={setOpenCombo}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={openCombo}
+                className="w-full justify-between"
+              >
+                {comboValues
+                  ? folders.find((framework) => framework.name === comboValues)?.name
+                  : "Choose folder"}
+                <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0">
+              <Command>
+                <CommandInput placeholder="Search folder..." />
+                <CommandList>
+                  <CommandEmpty>No framework found.</CommandEmpty>
+                  <CommandGroup>
+                    {folders.map((folder) => (
+                      <CommandItem
+                        key={folder.id}
+                        value={folder.name}
+                        onSelect={(currentValue) => {
+                          setComboValue(currentValue === comboValues ? "" : currentValue)
+                          setOpenCombo(false)
+                        }}
+                      >
+                        <CheckIcon
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            comboValues === folder.name ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {folder.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           </div>
-
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Create new folder</div>
-            <Input
-              placeholder="Folder name"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  onConfirm({ folderId: selectedId, newFolderName: newFolderName.trim() || undefined })
-                }
-              }}
-            />
+          <div className="flex gap-2 items-center">
+            Or
+            <Button variant="outline" onClick={() => setNewFolderOpen(!newFolderOpen)}>New Folder</Button>
           </div>
         </div>
-
+        <div className="flex items-center gap-2">
+          <Input
+            disabled={!newFolderOpen}
+            placeholder="Folder name"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            aria-label="Search folders"
+          />
+        </div>
         <DialogFooter className="gap-2">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Cancel
